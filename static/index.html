@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Face Recognition System</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            surface: {
+              50:  '#fafafa',
+              100: '#f0f0f0',
+              200: '#e4e4e4',
+              300: '#d1d1d1',
+              400: '#a3a3a3',
+              500: '#737373',
+              600: '#525252',
+              700: '#3a3a3a',
+              800: '#262626',
+              900: '#1a1a1a',
+              950: '#0f0f0f',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    body { font-family: 'Inter', system-ui, sans-serif; }
+
+    .drop-zone {
+      transition: all 0.2s ease;
+    }
+    .drop-zone.dragover {
+      border-color: #a3a3a3;
+      background-color: rgba(163,163,163,0.08);
+      transform: scale(1.01);
+    }
+
+    .fade-in {
+      animation: fadeIn 0.4s ease-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .pulse-ring {
+      animation: pulseRing 1.5s ease-out infinite;
+    }
+    @keyframes pulseRing {
+      0%   { transform: scale(0.8); opacity: 1; }
+      100% { transform: scale(2.2); opacity: 0; }
+    }
+
+    .slide-up {
+      animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .similarity-bar {
+      transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    input[type="text"]:focus {
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(163,163,163,0.3);
+    }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #1a1a1a; }
+    ::-webkit-scrollbar-thumb { background: #3a3a3a; border-radius: 3px; }
+  </style>
+</head>
+<body class="h-full bg-surface-950 text-surface-200 overflow-x-hidden">
+
+  <!-- Header -->
+  <header class="border-b border-surface-800 bg-surface-950/80 backdrop-blur-md sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-lg bg-surface-800 flex items-center justify-center">
+          <svg class="w-5 h-5 text-surface-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+              d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15A2.25 2.25 0 002.25 6.75v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z" />
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-lg font-semibold text-surface-100 tracking-tight">Face Recognition</h1>
+          <p class="text-xs text-surface-500">ArcFace + FAISS Vector Search</p>
+        </div>
+      </div>
+      <div id="health-badge" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-900 border border-surface-800">
+        <span class="relative flex h-2 w-2">
+          <span id="health-dot-ping" class="pulse-ring absolute inline-flex h-full w-full rounded-full bg-surface-500 opacity-75"></span>
+          <span id="health-dot" class="relative inline-flex rounded-full h-2 w-2 bg-surface-500"></span>
+        </span>
+        <span id="health-text" class="text-xs font-medium text-surface-400">Connecting...</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="max-w-7xl mx-auto px-6 py-8">
+
+    <!-- Two-column panels -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+
+      <!-- Register Panel -->
+      <section class="bg-surface-900 rounded-2xl border border-surface-800 overflow-hidden">
+        <div class="px-6 py-4 border-b border-surface-800 flex items-center gap-3">
+          <div class="w-8 h-8 rounded-lg bg-surface-800 flex items-center justify-center">
+            <svg class="w-4 h-4 text-surface-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+          </div>
+          <div>
+            <h2 class="text-sm font-semibold text-surface-100">Register Face</h2>
+            <p class="text-xs text-surface-500">Add a new person to the database</p>
+          </div>
+        </div>
+
+        <div class="p-6 space-y-4">
+          <!-- Drop zone -->
+          <div id="register-drop"
+               class="drop-zone relative border-2 border-dashed border-surface-700 rounded-xl p-8 text-center cursor-pointer hover:border-surface-500 transition-all"
+               onclick="document.getElementById('register-file').click()">
+            <input type="file" id="register-file" accept="image/*" class="hidden" />
+            <div id="register-placeholder" class="space-y-3">
+              <div class="mx-auto w-12 h-12 rounded-full bg-surface-800 flex items-center justify-center">
+                <svg class="w-6 h-6 text-surface-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.41a2.25 2.25 0 013.182 0l2.909 2.91M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" />
+                </svg>
+              </div>
+              <p class="text-sm text-surface-400">Drop an image here or <span class="text-surface-200 font-medium">browse</span></p>
+              <p class="text-xs text-surface-600">JPEG, PNG — single face only</p>
+            </div>
+            <div id="register-preview-wrap" class="hidden">
+              <img id="register-preview" class="mx-auto max-h-48 rounded-lg object-cover" />
+              <button onclick="event.stopPropagation(); clearRegister()" class="mt-2 text-xs text-surface-500 hover:text-surface-300 transition-colors">Remove</button>
+            </div>
+          </div>
+
+          <!-- Name input -->
+          <div>
+            <label class="block text-xs font-medium text-surface-400 mb-1.5">Person Name</label>
+            <input type="text" id="register-name"
+              placeholder="e.g. John Doe"
+              class="w-full bg-surface-800 border border-surface-700 rounded-lg px-4 py-2.5 text-sm text-surface-100 placeholder-surface-600 transition-all" />
+          </div>
+
+          <!-- Submit -->
+          <button id="register-btn" onclick="registerFace()"
+            class="w-full bg-surface-100 hover:bg-white text-surface-900 font-semibold text-sm py-2.5 rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            disabled>
+            Register Face
+          </button>
+
+          <!-- Result -->
+          <div id="register-result" class="hidden"></div>
+        </div>
+      </section>
+
+      <!-- Recognize Panel -->
+      <section class="bg-surface-900 rounded-2xl border border-surface-800 overflow-hidden">
+        <div class="px-6 py-4 border-b border-surface-800 flex items-center gap-3">
+          <div class="w-8 h-8 rounded-lg bg-surface-800 flex items-center justify-center">
+            <svg class="w-4 h-4 text-surface-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+            </svg>
+          </div>
+          <div>
+            <h2 class="text-sm font-semibold text-surface-100">Recognize Face</h2>
+            <p class="text-xs text-surface-500">Identify a person from the database</p>
+          </div>
+        </div>
+
+        <div class="p-6 space-y-4">
+          <!-- Drop zone -->
+          <div id="recognize-drop"
+               class="drop-zone relative border-2 border-dashed border-surface-700 rounded-xl p-8 text-center cursor-pointer hover:border-surface-500 transition-all"
+               onclick="document.getElementById('recognize-file').click()">
+            <input type="file" id="recognize-file" accept="image/*" class="hidden" />
+            <div id="recognize-placeholder" class="space-y-3">
+              <div class="mx-auto w-12 h-12 rounded-full bg-surface-800 flex items-center justify-center">
+                <svg class="w-6 h-6 text-surface-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0" />
+                </svg>
+              </div>
+              <p class="text-sm text-surface-400">Drop an image here or <span class="text-surface-200 font-medium">browse</span></p>
+              <p class="text-xs text-surface-600">JPEG, PNG — who is this person?</p>
+            </div>
+            <div id="recognize-preview-wrap" class="hidden">
+              <img id="recognize-preview" class="mx-auto max-h-48 rounded-lg object-cover" />
+              <button onclick="event.stopPropagation(); clearRecognize()" class="mt-2 text-xs text-surface-500 hover:text-surface-300 transition-colors">Remove</button>
+            </div>
+          </div>
+
+          <!-- Threshold slider -->
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="text-xs font-medium text-surface-400">Similarity Threshold</label>
+              <span id="threshold-value" class="text-xs font-mono text-surface-500">0.60</span>
+            </div>
+            <input type="range" id="threshold-slider" min="0.1" max="0.95" step="0.05" value="0.6"
+              class="w-full h-1.5 bg-surface-800 rounded-full appearance-none cursor-pointer accent-surface-400" />
+          </div>
+
+          <!-- Submit -->
+          <button id="recognize-btn" onclick="recognizeFace()"
+            class="w-full bg-surface-100 hover:bg-white text-surface-900 font-semibold text-sm py-2.5 rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            disabled>
+            Identify Face
+          </button>
+
+          <!-- Result -->
+          <div id="recognize-result" class="hidden"></div>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- Activity Log -->
+    <section class="bg-surface-900 rounded-2xl border border-surface-800 overflow-hidden">
+      <div class="px-6 py-4 border-b border-surface-800 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-lg bg-surface-800 flex items-center justify-center">
+            <svg class="w-4 h-4 text-surface-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div>
+            <h2 class="text-sm font-semibold text-surface-100">Activity Log</h2>
+            <p class="text-xs text-surface-500">Recent registrations and recognitions</p>
+          </div>
+        </div>
+        <button onclick="clearLog()" class="text-xs text-surface-600 hover:text-surface-400 transition-colors">Clear</button>
+      </div>
+      <div id="activity-log" class="p-6">
+        <p id="log-empty" class="text-center text-sm text-surface-600 py-8">No activity yet. Register or recognize a face to get started.</p>
+        <div id="log-entries" class="space-y-3 hidden"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    const API = window.location.origin;
+
+    let registerFile = null;
+    let recognizeFile = null;
+
+    // ── Health ──────────────────────────────────────────────────
+    async function checkHealth() {
+      try {
+        const res = await fetch(`${API}/health`);
+        const data = await res.json();
+        const dot = document.getElementById('health-dot');
+        const ping = document.getElementById('health-dot-ping');
+        const text = document.getElementById('health-text');
+        dot.className = 'relative inline-flex rounded-full h-2 w-2 bg-emerald-400';
+        ping.className = 'pulse-ring absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75';
+        text.textContent = `Online · ${data.faces_registered} face${data.faces_registered !== 1 ? 's' : ''}`;
+        text.className = 'text-xs font-medium text-emerald-400';
+      } catch {
+        const dot = document.getElementById('health-dot');
+        const ping = document.getElementById('health-dot-ping');
+        const text = document.getElementById('health-text');
+        dot.className = 'relative inline-flex rounded-full h-2 w-2 bg-red-400';
+        ping.className = 'pulse-ring absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75';
+        text.textContent = 'Offline';
+        text.className = 'text-xs font-medium text-red-400';
+      }
+    }
+    checkHealth();
+    setInterval(checkHealth, 5000);
+
+    // ── Drag & Drop ─────────────────────────────────────────────
+    function setupDropZone(dropId, fileInputId, previewId, placeholderId, previewWrapId, onFileSet) {
+      const zone = document.getElementById(dropId);
+      const input = document.getElementById(fileInputId);
+
+      ['dragenter', 'dragover'].forEach(evt =>
+        zone.addEventListener(evt, e => { e.preventDefault(); zone.classList.add('dragover'); })
+      );
+      ['dragleave', 'drop'].forEach(evt =>
+        zone.addEventListener(evt, e => { e.preventDefault(); zone.classList.remove('dragover'); })
+      );
+
+      zone.addEventListener('drop', e => {
+        const file = e.dataTransfer.files[0];
+        if (file && file.type.startsWith('image/')) handleFile(file);
+      });
+
+      input.addEventListener('change', e => {
+        if (e.target.files[0]) handleFile(e.target.files[0]);
+      });
+
+      function handleFile(file) {
+        const reader = new FileReader();
+        reader.onload = e => {
+          document.getElementById(previewId).src = e.target.result;
+          document.getElementById(placeholderId).classList.add('hidden');
+          document.getElementById(previewWrapId).classList.remove('hidden');
+          onFileSet(file);
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    setupDropZone('register-drop', 'register-file', 'register-preview', 'register-placeholder', 'register-preview-wrap', f => {
+      registerFile = f;
+      updateRegisterBtn();
+    });
+
+    setupDropZone('recognize-drop', 'recognize-file', 'recognize-preview', 'recognize-placeholder', 'recognize-preview-wrap', f => {
+      recognizeFile = f;
+      document.getElementById('recognize-btn').disabled = false;
+    });
+
+    // ── Register ────────────────────────────────────────────────
+    const nameInput = document.getElementById('register-name');
+    nameInput.addEventListener('input', updateRegisterBtn);
+
+    function updateRegisterBtn() {
+      document.getElementById('register-btn').disabled = !(registerFile && nameInput.value.trim());
+    }
+
+    function clearRegister() {
+      registerFile = null;
+      document.getElementById('register-file').value = '';
+      document.getElementById('register-placeholder').classList.remove('hidden');
+      document.getElementById('register-preview-wrap').classList.add('hidden');
+      updateRegisterBtn();
+    }
+
+    async function registerFace() {
+      const btn = document.getElementById('register-btn');
+      const resultDiv = document.getElementById('register-result');
+      const name = nameInput.value.trim();
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="inline-flex items-center gap-2"><svg class="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg> Processing...</span>';
+
+      const formData = new FormData();
+      formData.append('name', name);
+      formData.append('image', registerFile);
+
+      try {
+        const start = performance.now();
+        const res = await fetch(`${API}/register`, { method: 'POST', body: formData });
+        const elapsed = Math.round(performance.now() - start);
+        const data = await res.json();
+
+        if (res.ok) {
+          resultDiv.className = 'fade-in';
+          resultDiv.classList.remove('hidden');
+          resultDiv.innerHTML = `
+            <div class="bg-surface-800 border border-surface-700 rounded-xl p-4 flex items-center gap-4">
+              <div class="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+                <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                </svg>
+              </div>
+              <div class="min-w-0">
+                <p class="text-sm font-medium text-surface-100">${data.name} registered</p>
+                <p class="text-xs text-surface-500 font-mono truncate">${data.id} · ${elapsed}ms</p>
+              </div>
+            </div>`;
+          addLogEntry('register', name, null, elapsed);
+          checkHealth();
+        } else {
+          showError(resultDiv, data.detail || 'Registration failed');
+          addLogEntry('error', data.detail || 'Registration failed', null, null);
+        }
+      } catch (err) {
+        showError(resultDiv, 'Network error: ' + err.message);
+      }
+
+      btn.textContent = 'Register Face';
+      updateRegisterBtn();
+    }
+
+    // ── Recognize ───────────────────────────────────────────────
+    function clearRecognize() {
+      recognizeFile = null;
+      document.getElementById('recognize-file').value = '';
+      document.getElementById('recognize-placeholder').classList.remove('hidden');
+      document.getElementById('recognize-preview-wrap').classList.add('hidden');
+      document.getElementById('recognize-btn').disabled = true;
+    }
+
+    const thresholdSlider = document.getElementById('threshold-slider');
+    const thresholdValue = document.getElementById('threshold-value');
+    thresholdSlider.addEventListener('input', () => {
+      thresholdValue.textContent = parseFloat(thresholdSlider.value).toFixed(2);
+    });
+
+    async function recognizeFace() {
+      const btn = document.getElementById('recognize-btn');
+      const resultDiv = document.getElementById('recognize-result');
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="inline-flex items-center gap-2"><svg class="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg> Scanning...</span>';
+
+      const formData = new FormData();
+      formData.append('image', recognizeFile);
+      formData.append('threshold', thresholdSlider.value);
+
+      try {
+        const start = performance.now();
+        const res = await fetch(`${API}/recognize`, { method: 'POST', body: formData });
+        const elapsed = Math.round(performance.now() - start);
+        const data = await res.json();
+
+        resultDiv.classList.remove('hidden');
+
+        if (res.ok && data.matched) {
+          const pct = Math.round(data.similarity * 100);
+          const barColor = pct >= 80 ? 'bg-emerald-400' : pct >= 60 ? 'bg-yellow-400' : 'bg-orange-400';
+          resultDiv.className = 'slide-up';
+          resultDiv.innerHTML = `
+            <div class="bg-surface-800 border border-surface-700 rounded-xl p-5 space-y-4">
+              <div class="flex items-center gap-4">
+                <div class="w-12 h-12 rounded-full bg-surface-700 flex items-center justify-center flex-shrink-0">
+                  <span class="text-lg font-bold text-surface-200">${data.name.charAt(0).toUpperCase()}</span>
+                </div>
+                <div class="min-w-0 flex-1">
+                  <p class="text-base font-semibold text-surface-100">${data.name}</p>
+                  <p class="text-xs text-surface-500">${elapsed}ms · threshold ${thresholdSlider.value}</p>
+                </div>
+                <div class="text-right flex-shrink-0">
+                  <p class="text-2xl font-bold text-surface-100">${pct}%</p>
+                  <p class="text-xs text-surface-500">match</p>
+                </div>
+              </div>
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-xs text-surface-500">Similarity</span>
+                  <span class="text-xs font-mono text-surface-400">${data.similarity.toFixed(4)}</span>
+                </div>
+                <div class="h-2 bg-surface-700 rounded-full overflow-hidden">
+                  <div class="similarity-bar h-full ${barColor} rounded-full" style="width: 0%"></div>
+                </div>
+              </div>
+            </div>`;
+          // Animate bar
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              resultDiv.querySelector('.similarity-bar').style.width = pct + '%';
+            });
+          });
+          addLogEntry('match', data.name, data.similarity, elapsed);
+        } else if (res.ok) {
+          resultDiv.className = 'slide-up';
+          resultDiv.innerHTML = `
+            <div class="bg-surface-800 border border-surface-700 rounded-xl p-4 flex items-center gap-4">
+              <div class="w-10 h-10 rounded-full bg-surface-700 flex items-center justify-center flex-shrink-0">
+                <svg class="w-5 h-5 text-surface-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636"/>
+                </svg>
+              </div>
+              <div>
+                <p class="text-sm font-medium text-surface-300">No match found</p>
+                <p class="text-xs text-surface-600">${elapsed}ms · threshold ${thresholdSlider.value}</p>
+              </div>
+            </div>`;
+          addLogEntry('no-match', null, null, elapsed);
+        } else {
+          showError(resultDiv, data.detail || 'Recognition failed');
+          addLogEntry('error', data.detail || 'Recognition failed', null, null);
+        }
+      } catch (err) {
+        showError(resultDiv, 'Network error: ' + err.message);
+      }
+
+      btn.textContent = 'Identify Face';
+      btn.disabled = !recognizeFile;
+    }
+
+    // ── Shared helpers ──────────────────────────────────────────
+    function showError(container, message) {
+      container.classList.remove('hidden');
+      container.className = 'fade-in';
+      container.innerHTML = `
+        <div class="bg-red-500/5 border border-red-500/20 rounded-xl p-4 flex items-center gap-3">
+          <svg class="w-5 h-5 text-red-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/>
+          </svg>
+          <p class="text-sm text-red-300">${message}</p>
+        </div>`;
+    }
+
+    function addLogEntry(type, name, similarity, elapsed) {
+      const container = document.getElementById('log-entries');
+      const empty = document.getElementById('log-empty');
+      container.classList.remove('hidden');
+      empty.classList.add('hidden');
+
+      const time = new Date().toLocaleTimeString();
+      let icon, text, badge;
+
+      if (type === 'register') {
+        icon = `<div class="w-8 h-8 rounded-full bg-surface-800 flex items-center justify-center flex-shrink-0">
+                  <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                </div>`;
+        text = `Registered <span class="text-surface-200 font-medium">${name}</span>`;
+        badge = `<span class="text-xs text-surface-600">${elapsed}ms</span>`;
+      } else if (type === 'match') {
+        const pct = Math.round(similarity * 100);
+        icon = `<div class="w-8 h-8 rounded-full bg-surface-800 flex items-center justify-center flex-shrink-0">
+                  <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                </div>`;
+        text = `Matched <span class="text-surface-200 font-medium">${name}</span> · ${pct}%`;
+        badge = `<span class="text-xs text-surface-600">${elapsed}ms</span>`;
+      } else if (type === 'no-match') {
+        icon = `<div class="w-8 h-8 rounded-full bg-surface-800 flex items-center justify-center flex-shrink-0">
+                  <svg class="w-4 h-4 text-surface-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </div>`;
+        text = `No match found`;
+        badge = `<span class="text-xs text-surface-600">${elapsed}ms</span>`;
+      } else {
+        icon = `<div class="w-8 h-8 rounded-full bg-red-500/10 flex items-center justify-center flex-shrink-0">
+                  <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/></svg>
+                </div>`;
+        text = `<span class="text-red-300">${name}</span>`;
+        badge = '';
+      }
+
+      const entry = document.createElement('div');
+      entry.className = 'fade-in flex items-center gap-3 py-2';
+      entry.innerHTML = `
+        ${icon}
+        <div class="flex-1 min-w-0">
+          <p class="text-sm text-surface-400">${text}</p>
+        </div>
+        <div class="flex items-center gap-3 flex-shrink-0">
+          ${badge}
+          <span class="text-xs text-surface-700">${time}</span>
+        </div>`;
+
+      container.prepend(entry);
+
+      // Keep max 20 entries
+      while (container.children.length > 20) {
+        container.removeChild(container.lastChild);
+      }
+    }
+
+    function clearLog() {
+      const container = document.getElementById('log-entries');
+      const empty = document.getElementById('log-empty');
+      container.innerHTML = '';
+      container.classList.add('hidden');
+      empty.classList.remove('hidden');
+    }
+  </script>
+</body>
+</html>

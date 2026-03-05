@@ -343,40 +343,57 @@
       const result = document.getElementById('import-result');
 
       btn.disabled = true;
-      btn.innerHTML = '<span class="inline-flex items-center gap-2"><svg class="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg> Importing...</span>';
-      result.classList.add('hidden');
+      result.classList.remove('hidden');
+      result.className = 'text-xs text-surface-400';
+      result.textContent = 'Starting...';
 
       try {
-        const start = performance.now();
-        const res = await fetch(`${API}/register-from-disk`, { method: 'POST' });
-        const elapsed = Math.round(performance.now() - start);
-        const text = await res.text();
+        // Start the background job
+        const startRes = await fetch(`${API}/register-from-disk`, { method: 'POST' });
+        const startData = await startRes.json();
 
-        result.classList.remove('hidden');
-        let data;
-        try { data = JSON.parse(text); } catch (_) {
+        if (!startRes.ok) {
           result.className = 'text-xs text-red-400';
-          result.textContent = `Server error (${res.status}): ${text.replace(/<[^>]+>/g, '').trim().slice(0, 200)}`;
+          result.textContent = startData.detail || 'Failed to start import.';
           btn.disabled = false;
           btn.textContent = 'Run Import';
           return;
         }
 
-        if (res.ok) {
+        const jobId = startData.job_id;
+        const start = performance.now();
+
+        // Poll until done
+        while (true) {
+          await new Promise(r => setTimeout(r, 1500));
+          const pollRes = await fetch(`${API}/import-status/${jobId}`);
+          const job = await pollRes.json();
+
+          if (job.status === 'running') {
+            const pct = job.total > 0 ? Math.round((job.progress / job.total) * 100) : 0;
+            result.textContent = `Processing… ${job.progress}/${job.total} (${pct}%)`;
+            continue;
+          }
+
+          if (job.status === 'error') {
+            result.className = 'text-xs text-red-400';
+            result.textContent = `Error: ${job.detail}`;
+            break;
+          }
+
+          // done
+          const elapsed = Math.round(performance.now() - start);
           result.className = 'text-xs text-surface-300 flex items-center gap-3';
           result.innerHTML = `
-            <span class="text-emerald-400 font-semibold">${data.registered} registered</span>
-            <span class="text-yellow-400">${data.duplicates} skipped</span>
-            ${data.failed ? `<span class="text-red-400">${data.failed} failed</span>` : ''}
+            <span class="text-emerald-400 font-semibold">${job.registered} registered</span>
+            <span class="text-yellow-400">${job.duplicates} skipped</span>
+            ${job.failed ? `<span class="text-red-400">${job.failed} failed</span>` : ''}
             <span class="text-surface-600">${elapsed}ms</span>`;
-          addLogEntry('batch', 'Humans/ import', null, elapsed, data.registered, data.duplicates);
+          addLogEntry('batch', 'Humans/ import', null, elapsed, job.registered, job.duplicates);
           checkHealth();
-        } else {
-          result.className = 'text-xs text-red-400';
-          result.textContent = data.detail || 'Import failed.';
+          break;
         }
       } catch (err) {
-        result.classList.remove('hidden');
         result.className = 'text-xs text-red-400';
         result.textContent = 'Network error: ' + err.message;
       }

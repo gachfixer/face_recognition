@@ -6,12 +6,13 @@ using InsightFace (ArcFace) embeddings and FAISS vector search.
 """
 
 import logging
+import threading
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import AsyncGenerator, List
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -231,47 +232,39 @@ async def recognize(
 HUMANS_DIR = Path(__file__).parent / "Humans"
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 
+# In-memory job store: job_id -> status dict
+_import_jobs: dict = {}
+_jobs_lock = threading.Lock()
 
-@app.post("/register-from-disk", tags=["Faces"])
-async def register_from_disk() -> dict:
-    """Scan the Humans/ folder and register all faces found.
 
-    Expected structure:
-        Humans/
-            <Person Name>/
-                image1.jpg
-                image2.png
-                ...
-
-    Each sub-folder name becomes the person's name.
-    Duplicate faces (similarity >= DUPLICATE_THRESHOLD) are skipped.
-    """
-    if not HUMANS_DIR.exists():
-        raise HTTPException(
-            status_code=404,
-            detail=f"Humans/ folder not found at {HUMANS_DIR}.",
-        )
-
+def _run_import_job(job_id: str) -> None:
+    """Process all images in Humans/ in a background thread."""
     registered: List[dict] = []
     duplicates: List[dict] = []
     failed: List[dict] = []
 
     try:
-        image_paths = sorted(f for f in HUMANS_DIR.iterdir() if f.is_file() and f.suffix.lower() in IMAGE_SUFFIXES)
+        image_paths = sorted(
+            f for f in HUMANS_DIR.iterdir()
+            if f.is_file() and f.suffix.lower() in IMAGE_SUFFIXES
+        )
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to read Humans/ folder: {exc}")
+        with _jobs_lock:
+            _import_jobs[job_id] = {"status": "error", "detail": str(exc)}
+        return
 
-    if not image_paths:
-        return {"registered": 0, "duplicates": 0, "failed": 0, "results": [], "skipped": [], "errors": []}
+    total = len(image_paths)
+    with _jobs_lock:
+        _import_jobs[job_id]["total"] = total
 
-    for img_path in image_paths:
-        name = img_path.stem  # filename without extension = person's name
+    for i, img_path in enumerate(image_paths, 1):
+        name = img_path.stem
+        with _jobs_lock:
+            _import_jobs[job_id]["progress"] = i
+
         try:
             image_bytes = img_path.read_bytes()
             embedding = get_embedding(image_bytes)
-        except ValueError as exc:
-            failed.append({"file": img_path.name, "reason": str(exc)})
-            continue
         except Exception as exc:
             failed.append({"file": img_path.name, "reason": str(exc)})
             continue
@@ -290,14 +283,49 @@ async def register_from_disk() -> dict:
         except Exception as exc:
             failed.append({"file": img_path.name, "reason": f"Save error: {exc}"})
 
-    return {
-        "registered": len(registered),
-        "duplicates": len(duplicates),
-        "failed": len(failed),
-        "results": registered,
-        "skipped": duplicates,
-        "errors": failed,
-    }
+    with _jobs_lock:
+        _import_jobs[job_id].update({
+            "status": "done",
+            "registered": len(registered),
+            "duplicates": len(duplicates),
+            "failed": len(failed),
+            "results": registered,
+            "skipped": duplicates,
+            "errors": failed,
+        })
+
+
+@app.post("/register-from-disk", tags=["Faces"])
+async def register_from_disk() -> dict:
+    """Start a background import of all images in the Humans/ folder.
+
+    Returns a job_id immediately. Poll GET /import-status/{job_id} for progress.
+    Each image filename (without extension) becomes the person's name.
+    """
+    if not HUMANS_DIR.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=f"Humans/ folder not found at {HUMANS_DIR}.",
+        )
+
+    job_id = str(uuid.uuid4())
+    with _jobs_lock:
+        _import_jobs[job_id] = {"status": "running", "progress": 0, "total": 0}
+
+    thread = threading.Thread(target=_run_import_job, args=(job_id,), daemon=True)
+    thread.start()
+
+    return {"job_id": job_id, "status": "running"}
+
+
+@app.get("/import-status/{job_id}", tags=["Faces"])
+async def import_status(job_id: str) -> dict:
+    """Poll the status of a disk import job."""
+    with _jobs_lock:
+        job = _import_jobs.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found.")
+    return job
 
 
 if __name__ == "__main__":

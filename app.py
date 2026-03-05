@@ -226,7 +226,7 @@ async def recognize(
     }
 
 
-# ── Disk Import ──────────────────────────────────────────────────────────────
+# ── Disk Import ─────────────────────────────────────────────────────────────
 
 HUMANS_DIR = Path(__file__).parent / "Humans"
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
@@ -291,3 +291,8 @@ async def register_from_disk() -> dict:
         "skipped": duplicates,
         "errors": failed,
     }
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=False)

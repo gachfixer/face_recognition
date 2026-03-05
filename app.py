@@ -256,7 +256,11 @@ async def register_from_disk() -> dict:
     duplicates: List[dict] = []
     failed: List[dict] = []
 
-    image_paths = sorted(f for f in HUMANS_DIR.iterdir() if f.is_file() and f.suffix.lower() in IMAGE_SUFFIXES)
+    try:
+        image_paths = sorted(f for f in HUMANS_DIR.iterdir() if f.is_file() and f.suffix.lower() in IMAGE_SUFFIXES)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to read Humans/ folder: {exc}")
+
     if not image_paths:
         return {"registered": 0, "duplicates": 0, "failed": 0, "results": [], "skipped": [], "errors": []}
 
@@ -269,7 +273,7 @@ async def register_from_disk() -> dict:
             failed.append({"file": img_path.name, "reason": str(exc)})
             continue
         except Exception as exc:
-            failed.append({"file": img_path.name, "reason": f"Read error: {exc}"})
+            failed.append({"file": img_path.name, "reason": str(exc)})
             continue
 
         if _is_duplicate(embedding):
@@ -277,11 +281,14 @@ async def register_from_disk() -> dict:
             logger.info("Disk import duplicate skipped: %s", img_path.name)
             continue
 
-        face_uuid = str(uuid.uuid4())
-        face_id = insert_face(face_uuid, name)
-        add_embedding(embedding, face_id)
-        registered.append({"file": img_path.name, "id": face_uuid, "name": name})
-        logger.info("Disk import registered: name=%s, file=%s", name, img_path.name)
+        try:
+            face_uuid = str(uuid.uuid4())
+            face_id = insert_face(face_uuid, name)
+            add_embedding(embedding, face_id)
+            registered.append({"file": img_path.name, "id": face_uuid, "name": name})
+            logger.info("Disk import registered: name=%s, file=%s", name, img_path.name)
+        except Exception as exc:
+            failed.append({"file": img_path.name, "reason": f"Save error: {exc}"})
 
     return {
         "registered": len(registered),

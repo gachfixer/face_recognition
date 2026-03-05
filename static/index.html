@@ -350,9 +350,18 @@
         const start = performance.now();
         const res = await fetch(`${API}/register-from-disk`, { method: 'POST' });
         const elapsed = Math.round(performance.now() - start);
-        const data = await res.json();
+        const text = await res.text();
 
         result.classList.remove('hidden');
+        let data;
+        try { data = JSON.parse(text); } catch (_) {
+          result.className = 'text-xs text-red-400';
+          result.textContent = `Server error (${res.status}): ${text.replace(/<[^>]+>/g, '').trim().slice(0, 200)}`;
+          btn.disabled = false;
+          btn.textContent = 'Run Import';
+          return;
+        }
+
         if (res.ok) {
           result.className = 'text-xs text-surface-300 flex items-center gap-3';
           result.innerHTML = `

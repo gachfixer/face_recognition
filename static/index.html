@@ -109,10 +109,33 @@
   <!-- Main -->
   <main class="max-w-7xl mx-auto px-6 py-8">
 
-    <!-- Two-column panels -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+    <!-- Import from Humans/ folder -->
+    <section class="bg-surface-900 rounded-2xl border border-surface-800 p-5 mb-6 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-4 min-w-0">
+        <div class="w-10 h-10 rounded-lg bg-surface-800 flex items-center justify-center flex-shrink-0">
+          <svg class="w-5 h-5 text-surface-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+              d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+          </svg>
+        </div>
+        <div class="min-w-0">
+          <p class="text-sm font-semibold text-surface-100">Import from <code class="text-surface-300 bg-surface-800 px-1.5 py-0.5 rounded text-xs">Humans/</code> folder</p>
+          <p class="text-xs text-surface-500 mt-0.5">Scans <code class="text-surface-600 text-xs">Humans/John Doe.jpg</code> — filename becomes the person's name. Duplicates are skipped.</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3 flex-shrink-0">
+        <div id="import-result" class="hidden text-xs text-surface-400"></div>
+        <button id="import-btn" onclick="importFromDisk()"
+          class="bg-surface-100 hover:bg-white text-surface-900 font-semibold text-sm px-5 py-2.5 rounded-lg transition-all whitespace-nowrap">
+          Run Import
+        </button>
+      </div>
+    </section>
 
-      <!-- Register Panel -->
+    <!-- Three-column panels -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+
+      <!-- Register Single Panel -->
       <section class="bg-surface-900 rounded-2xl border border-surface-800 overflow-hidden">
         <div class="px-6 py-4 border-b border-surface-800 flex items-center gap-3">
           <div class="w-8 h-8 rounded-lg bg-surface-800 flex items-center justify-center">
@@ -122,7 +145,7 @@
           </div>
           <div>
             <h2 class="text-sm font-semibold text-surface-100">Register Face</h2>
-            <p class="text-xs text-surface-500">Add a new person to the database</p>
+            <p class="text-xs text-surface-500">Add a single image</p>
           </div>
         </div>
 
@@ -165,6 +188,61 @@
 
           <!-- Result -->
           <div id="register-result" class="hidden"></div>
+        </div>
+      </section>
+
+      <!-- Batch Register Panel -->
+      <section class="bg-surface-900 rounded-2xl border border-surface-800 overflow-hidden">
+        <div class="px-6 py-4 border-b border-surface-800 flex items-center gap-3">
+          <div class="w-8 h-8 rounded-lg bg-surface-800 flex items-center justify-center">
+            <svg class="w-4 h-4 text-surface-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+          </div>
+          <div>
+            <h2 class="text-sm font-semibold text-surface-100">Batch Register</h2>
+            <p class="text-xs text-surface-500">Upload many images for one person</p>
+          </div>
+        </div>
+
+        <div class="p-6 space-y-4">
+          <!-- Multi-file drop zone -->
+          <div id="batch-drop"
+               class="drop-zone relative border-2 border-dashed border-surface-700 rounded-xl p-8 text-center cursor-pointer hover:border-surface-500 transition-all"
+               onclick="document.getElementById('batch-files').click()">
+            <input type="file" id="batch-files" accept="image/*" multiple class="hidden" />
+            <div id="batch-placeholder" class="space-y-3">
+              <div class="mx-auto w-12 h-12 rounded-full bg-surface-800 flex items-center justify-center">
+                <svg class="w-6 h-6 text-surface-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                </svg>
+              </div>
+              <p class="text-sm text-surface-400">Drop images here or <span class="text-surface-200 font-medium">browse</span></p>
+              <p class="text-xs text-surface-600">Select multiple JPEG/PNG files</p>
+            </div>
+            <div id="batch-selected" class="hidden text-left space-y-1 max-h-36 overflow-y-auto">
+              <p id="batch-count" class="text-xs font-medium text-surface-400 mb-2"></p>
+            </div>
+          </div>
+
+          <!-- Name input -->
+          <div>
+            <label class="block text-xs font-medium text-surface-400 mb-1.5">Person Name</label>
+            <input type="text" id="batch-name"
+              placeholder="e.g. Jane Doe"
+              class="w-full bg-surface-800 border border-surface-700 rounded-lg px-4 py-2.5 text-sm text-surface-100 placeholder-surface-600 transition-all" />
+          </div>
+
+          <!-- Submit -->
+          <button id="batch-btn" onclick="registerBatch()"
+            class="w-full bg-surface-100 hover:bg-white text-surface-900 font-semibold text-sm py-2.5 rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            disabled>
+            Register All
+          </button>
+
+          <!-- Result -->
+          <div id="batch-result" class="hidden"></div>
         </div>
       </section>
 
@@ -258,6 +336,45 @@
 
     let registerFile = null;
     let recognizeFile = null;
+
+    // ── Import from Humans/ folder ──────────────────────────────
+    async function importFromDisk() {
+      const btn = document.getElementById('import-btn');
+      const result = document.getElementById('import-result');
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="inline-flex items-center gap-2"><svg class="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg> Importing...</span>';
+      result.classList.add('hidden');
+
+      try {
+        const start = performance.now();
+        const res = await fetch(`${API}/register-from-disk`, { method: 'POST' });
+        const elapsed = Math.round(performance.now() - start);
+        const data = await res.json();
+
+        result.classList.remove('hidden');
+        if (res.ok) {
+          result.className = 'text-xs text-surface-300 flex items-center gap-3';
+          result.innerHTML = `
+            <span class="text-emerald-400 font-semibold">${data.registered} registered</span>
+            <span class="text-yellow-400">${data.duplicates} skipped</span>
+            ${data.failed ? `<span class="text-red-400">${data.failed} failed</span>` : ''}
+            <span class="text-surface-600">${elapsed}ms</span>`;
+          addLogEntry('batch', 'Humans/ import', null, elapsed, data.registered, data.duplicates);
+          checkHealth();
+        } else {
+          result.className = 'text-xs text-red-400';
+          result.textContent = data.detail || 'Import failed.';
+        }
+      } catch (err) {
+        result.classList.remove('hidden');
+        result.className = 'text-xs text-red-400';
+        result.textContent = 'Network error: ' + err.message;
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'Run Import';
+    }
 
     // ── Health ──────────────────────────────────────────────────
     async function checkHealth() {
@@ -361,7 +478,23 @@
         const elapsed = Math.round(performance.now() - start);
         const data = await res.json();
 
-        if (res.ok) {
+        if (res.ok && data.status === 'duplicate') {
+          resultDiv.className = 'fade-in';
+          resultDiv.classList.remove('hidden');
+          resultDiv.innerHTML = `
+            <div class="bg-surface-800 border border-yellow-500/30 rounded-xl p-4 flex items-center gap-4">
+              <div class="w-10 h-10 rounded-full bg-yellow-500/10 flex items-center justify-center flex-shrink-0">
+                <svg class="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/>
+                </svg>
+              </div>
+              <div class="min-w-0">
+                <p class="text-sm font-medium text-yellow-300">Already registered</p>
+                <p class="text-xs text-surface-500">${data.name} · ${elapsed}ms</p>
+              </div>
+            </div>`;
+          addLogEntry('duplicate', name, null, elapsed);
+        } else if (res.ok) {
           resultDiv.className = 'fade-in';
           resultDiv.classList.remove('hidden');
           resultDiv.innerHTML = `
@@ -388,6 +521,96 @@
 
       btn.textContent = 'Register Face';
       updateRegisterBtn();
+    }
+
+    // ── Batch Register ──────────────────────────────────────────
+    let batchFiles = [];
+
+    const batchInput = document.getElementById('batch-files');
+    const batchNameInput = document.getElementById('batch-name');
+    const batchDrop = document.getElementById('batch-drop');
+
+    function updateBatchBtn() {
+      document.getElementById('batch-btn').disabled = !(batchFiles.length > 0 && batchNameInput.value.trim());
+    }
+
+    function showBatchFiles(files) {
+      batchFiles = Array.from(files);
+      const placeholder = document.getElementById('batch-placeholder');
+      const selected = document.getElementById('batch-selected');
+      const count = document.getElementById('batch-count');
+      placeholder.classList.add('hidden');
+      selected.classList.remove('hidden');
+      count.textContent = `${batchFiles.length} image${batchFiles.length !== 1 ? 's' : ''} selected — click to change`;
+      updateBatchBtn();
+    }
+
+    batchInput.addEventListener('change', e => { if (e.target.files.length) showBatchFiles(e.target.files); });
+    batchNameInput.addEventListener('input', updateBatchBtn);
+
+    ['dragenter', 'dragover'].forEach(evt =>
+      batchDrop.addEventListener(evt, e => { e.preventDefault(); batchDrop.classList.add('dragover'); })
+    );
+    ['dragleave', 'drop'].forEach(evt =>
+      batchDrop.addEventListener(evt, e => { e.preventDefault(); batchDrop.classList.remove('dragover'); })
+    );
+    batchDrop.addEventListener('drop', e => {
+      const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+      if (files.length) showBatchFiles(files);
+    });
+
+    async function registerBatch() {
+      const btn = document.getElementById('batch-btn');
+      const resultDiv = document.getElementById('batch-result');
+      const name = batchNameInput.value.trim();
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="inline-flex items-center gap-2"><svg class="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg> Uploading...</span>';
+
+      const formData = new FormData();
+      formData.append('name', name);
+      batchFiles.forEach(f => formData.append('images', f));
+
+      try {
+        const start = performance.now();
+        const res = await fetch(`${API}/register-batch`, { method: 'POST', body: formData });
+        const elapsed = Math.round(performance.now() - start);
+        const data = await res.json();
+
+        resultDiv.classList.remove('hidden');
+        resultDiv.className = 'fade-in space-y-2';
+
+        if (res.ok) {
+          resultDiv.innerHTML = `
+            <div class="bg-surface-800 border border-surface-700 rounded-xl p-4 space-y-3">
+              <p class="text-sm font-semibold text-surface-100">${name} — batch complete · ${elapsed}ms</p>
+              <div class="grid grid-cols-3 gap-2 text-center">
+                <div class="bg-emerald-500/10 rounded-lg p-2">
+                  <p class="text-lg font-bold text-emerald-400">${data.registered}</p>
+                  <p class="text-xs text-surface-500">registered</p>
+                </div>
+                <div class="bg-yellow-500/10 rounded-lg p-2">
+                  <p class="text-lg font-bold text-yellow-400">${data.duplicates}</p>
+                  <p class="text-xs text-surface-500">duplicates</p>
+                </div>
+                <div class="bg-red-500/10 rounded-lg p-2">
+                  <p class="text-lg font-bold text-red-400">${data.failed}</p>
+                  <p class="text-xs text-surface-500">failed</p>
+                </div>
+              </div>
+              ${data.errors.length ? `<div class="text-xs text-red-400 space-y-1">${data.errors.map(e => `<p>${e.file}: ${e.reason}</p>`).join('')}</div>` : ''}
+            </div>`;
+          addLogEntry('batch', name, null, elapsed, data.registered, data.duplicates);
+          checkHealth();
+        } else {
+          showError(resultDiv, data.detail || 'Batch registration failed');
+        }
+      } catch (err) {
+        showError(document.getElementById('batch-result'), 'Network error: ' + err.message);
+      }
+
+      btn.textContent = 'Register All';
+      updateBatchBtn();
     }
 
     // ── Recognize ───────────────────────────────────────────────
@@ -500,7 +723,7 @@
         </div>`;
     }
 
-    function addLogEntry(type, name, similarity, elapsed) {
+    function addLogEntry(type, name, similarity, elapsed, registered, duplicates) {
       const container = document.getElementById('log-entries');
       const empty = document.getElementById('log-empty');
       container.classList.remove('hidden');
@@ -514,6 +737,18 @@
                   <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                 </div>`;
         text = `Registered <span class="text-surface-200 font-medium">${name}</span>`;
+        badge = `<span class="text-xs text-surface-600">${elapsed}ms</span>`;
+      } else if (type === 'duplicate') {
+        icon = `<div class="w-8 h-8 rounded-full bg-surface-800 flex items-center justify-center flex-shrink-0">
+                  <svg class="w-4 h-4 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/></svg>
+                </div>`;
+        text = `Duplicate skipped — <span class="text-surface-200 font-medium">${name}</span>`;
+        badge = `<span class="text-xs text-surface-600">${elapsed}ms</span>`;
+      } else if (type === 'batch') {
+        icon = `<div class="w-8 h-8 rounded-full bg-surface-800 flex items-center justify-center flex-shrink-0">
+                  <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                </div>`;
+        text = `Batch <span class="text-surface-200 font-medium">${name}</span> · ${registered} new, ${duplicates} skipped`;
         badge = `<span class="text-xs text-surface-600">${elapsed}ms</span>`;
       } else if (type === 'match') {
         const pct = Math.round(similarity * 100);

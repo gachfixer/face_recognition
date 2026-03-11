@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 DB_CONFIG: dict = {
     "host": "localhost",
-    "port": 5433,
+    "port": 5432,
     "user": "javasoft",
     "password": "javas0ft",
     "dbname": "face_database",

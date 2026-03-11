@@ -1,1 +1,45 @@
+# Dataset / large local assets
 Humans/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python cache / build artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+build/
+dist/
+*.egg-info/
+
+# Logs / runtime outputs
+logs/
+*.log
+
+# Local storage artifacts
+storage/*.index
+*.sqlite3
+*.db
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Editor / OS files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
